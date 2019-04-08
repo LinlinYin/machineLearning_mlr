@@ -1,0 +1,547 @@
+---
+title: "Machine Learning in mlr package"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This is an R Markdown notebook for machine learning in mlr package. More details see mlr Github <https://github.com/mlr-org/mlr>.
+
+```{r,warning=FALSE,echo=FALSE}
+library(knitr)
+
+library(mlr)
+library(DT)
+```
+
+# Examples
+## Simple Example
+```{r,warning=FALSE}
+## 1) Define the task: Specify the type of analysis (e.g. classification) and provide data and response variable
+task = makeClassifTask(data = iris, target = "Species")
+
+## 2) Define the learner: Choose a specific algorithm (e.g. linear discriminant analysis)
+lrn = makeLearner("classif.lda")
+n = nrow(iris)
+train.set = sample(n, size = 2/3*n)
+test.set = setdiff(1:n, train.set)
+
+## 3) Fit the model: Train the learner on the task using a random subset of the data as training set
+model = train(lrn, task, subset = train.set)
+
+## 4) Make predictions: Predict values of the response variable for new observations by the trained model, using the other part of the data as test set
+pred = predict(model, task = task, subset = test.set)
+
+## 5) Evaluate the learner: Calculate the mean misclassification error and accuracy
+performance(pred, measures = list(mmce, acc))
+```
+
+## Examples for Classification
+For classification the target column has to be a factor.
+```{r,warning=FALSE}
+df = getTaskData(sonar.task)
+## Define the task
+classifTask = makeClassifTask(data = df, target = "Class",positive = "M")
+classifTask$task.desc
+
+## Generate the learner
+lrn = makeLearner("classif.rpart",predict.type = "prob")
+
+## Train the learner
+mod = train(lrn, classifTask)
+mod = train("classif.rpart", classifTask) #Train the learner without generating it seperately
+mod
+
+## subset dataset for trainning
+n = getTaskSize(classifTask)
+trainSet = sample(n, size = n/3)
+testSet=setdiff(1:n,train.set)
+mod = train(lrn, classifTask, subset = trainSet)
+
+## Calculate the observation with weights if the outcome has different numbers of 0 and 1
+target = getTaskTargets(classifTask)
+tab = as.numeric(table(target))
+w = 1/tab[target]
+mod = train(lrn, classifTask,weights = w)
+
+## Prediction
+taskPred = predict(mod, task = classifTask, subset = testSet)
+taskPred
+newdataPred = predict(mod, newdata = df[testSet,which(colnames(df)!="Class")]) #if you want to predict data not included in the Task.
+newdataPred #Please note there is no "truth" column as this new data don't have a outcome ("Class" here) column
+head(as.data.frame(taskPred))  #export prediction results as data.frame
+head(getPredictionProbabilities(taskPred)) #get prediction probabilities. Please note the learner should have predict.type = "prob" as the default is "label"
+head(getPredictionProbabilities(taskPred, cl = c("M", "R"))) #by default it is positive class probability. We can get both by this command
+calculateConfusionMatrix(taskPred,relative = TRUE) #Confusion matrix of Prediction
+
+## Adjusting the Prediction decision threshold
+taskPred$threshold
+getTaskDesc(classifTask)$positive
+#Please note here this is threshold for the positive class. So probability < it will be negative class
+taskPred1 = setThreshold(taskPred, 0.9)
+calculateConfusionMatrix(taskPred)
+calculateConfusionMatrix(taskPred1)
+
+## Visulization
+lrn = makeLearner("classif.rpart")
+plotLearnerPrediction(lrn, features = c("V1", "V3"),task = classifTask)
+
+## Calculate performance measures
+performance(taskPred)
+performance(taskPred, measures = list(fpr, fnr, mmce,auc))
+d = generateThreshVsPerfData(taskPred, measures = list(fpr, fnr, mmce,auc))
+plotThreshVsPerf(d) #Plot performance versus threshold
+r = calculateROCMeasures(taskPred) #ROC measures
+r
+```
+
+## Re-Sampling
+* Cross-validation ("CV"),
+* Leave-one-out cross-validation ("LOO"),
+* Repeated cross-validation ("RepCV"),
+* Out-of-bag bootstrap and other variants like b632 ("Bootstrap"),
+* Subsampling, also called Monte-Carlo cross-validation ("Subsample"),
+* Holdout (training/test) ("Holdout").
+
+More details at <https://mlr-org.github.io/mlr-tutorial/release/html/resample/index.html>
+```{r,warning=FALSE}
+## 3-fold cross-validation
+rdesc = makeResampleDesc("CV", iters = 3)
+rdesc
+cv3 #pre-defined resample descriptions: hout, cv3, cv5, cv10
+r = resample("classif.rpart", classifTask, rdesc)
+r
+names(r)
+r$measures.test
+
+## Subsampling with 5 iterations and 4/5 training data
+rdesc = makeResampleDesc("Subsample", iters = 5, split = 4/5)
+lrn = makeLearner("classif.rpart", parms = list(split = "information")) ## Classification tree with information splitting criterion
+r = resample(lrn, classifTask, rdesc, measures = list(mmce, fpr, fnr)) ## Calculate the performance measures
+addRRMeasure(r, list(ber, timepredict)) #f you want to add further measures afterwards, use addRRMeasure
+#For convenience you can also specify the learner as a string and pass any learner parameters via the ... argument of resample.
+r = resample("classif.rpart", parms = list(split = "information"), classifTask, rdesc, measures = list(mmce, fpr, fnr), show.info = FALSE)
+
+## Accessing resample results
+#Predections: By default, predictions are made for the test sets only
+r$pred
+pred = getRRPredictions(r) #same as r$pred
+head(as.data.frame(pred))
+head(getPredictionTruth(pred))
+head(getPredictionResponse(pred))
+#Make predictions on both training and test sets
+rdesc = makeResampleDesc("Holdout", predict = "both")
+r = resample("classif.lda", classifTask, rdesc, show.info = FALSE)
+r
+r$measures.train #Please note that nonetheless the misclassification rate r$aggr is estimated on the test data only
+predList = getRRPredictionList(r) #getRRPredictionList which returns a list of predictions split by data set (train/test) and resampling iteration.
+predList
+
+```
+
+### The extract option
+we extract the variable importances from fitted regression trees using function getFeatureImportance.
+```{r,warning=FALSE}
+r = resample("classif.rpart", classifTask, rdesc, show.info = FALSE, extract = getFeatureImportance)
+r$extract[1:2]
+```
+
+### Stratification and blocking
+* In order to conduct stratified resampling, set stratify = TRUE in makeResampleDesc. Stratification is also available for survival tasks. The stratification balances the censoring rate.
+* If it is required to also stratify on the input data, e.g., to ensure that all subgroups are represented in all training and test sets. To stratify on the input columns, specify factor columns of your task data via stratify.cols.
+* If some observations "belong together" and must not be separated when splitting the data into training and test sets for resampling, you can supply this information via a blocking factor when creating the task.
+* Resample instances readily allow for paired experiments, that is comparing the performance of several learners on exactly the same training and test sets.
+```{r,warning=FALSE}
+#Stratification with respect to the target variable(s)
+rdesc = makeResampleDesc("CV", iters = 3, stratify = TRUE)
+r = resample("classif.lda", classifTask, rdesc, show.info = FALSE)
+r
+#Sometimes it is required to also stratify on the input data
+rdesc = makeResampleDesc("CV", iters = 3, stratify.cols = "chas")
+r = resample("regr.rpart", bh.task, rdesc, show.info = FALSE)
+r
+#5 blocks containing 30 observations each
+task = makeClassifTask(data = iris, target = "Species", blocking = factor(rep(1:5, each = 30)))
+task
+#Resample descriptions and resample instances
+rdesc = makeResampleDesc("CV", iters = 3)
+rin = makeResampleInstance(rdesc, iris.task)
+rin #Please note there is only resample index information
+rin = makeResampleInstance(rdesc, size = nrow(iris))
+#Resample instances readily allow for paired experiments
+rdesc = makeResampleDesc("CV", iters = 3)
+rin = makeResampleInstance(rdesc, task = iris.task)
+r.lda = resample("classif.lda", iris.task, rin, show.info = FALSE)
+r.rpart = resample("classif.rpart", iris.task, rin, show.info = FALSE)
+r.lda$aggr
+r.rpart$aggr
+```
+
+### Aggregating performance values
+Each performance Measure in mlr has a corresponding default aggregation method which is stored in slot $aggr. The default aggregation for most measures is test.mean. One exception is the root mean square error (rmse).
+The aggregation schemes test.median, test.min, and test.max compute the median, minimum, and maximum of the performance values on the test sets.
+```{r,warning=FALSE}
+mmce$aggr
+mmce$aggr$fun
+rmse$aggr
+rmse$aggr$fun
+
+#Example: One measure with different aggregations
+mseTestMedian = setAggregation(mse, test.median)
+mseTestMin = setAggregation(mse, test.min)
+mseTestMax = setAggregation(mse, test.max)
+rdesc = makeResampleDesc("CV", iters = 3)
+r = resample("regr.lm", bh.task, rdesc, measures = list(mse, mseTestMedian, mseTestMin, mseTestMax))
+r
+r$aggr
+#Example: Bootstrap
+#The b632 and b632+ variants calculate a convex combination of the training performance and the out-of-bag bootstrap performance and thus require predictions on the training sets and an appropriate aggregation strategy.
+rdesc = makeResampleDesc("Bootstrap", predict = "both", iters = 10)
+mmceB632 = setAggregation(mmce, b632)
+mmceB632plus = setAggregation(mmce, b632plus)
+r = resample("classif.rpart", iris.task, rdesc, measures = list(mmce, mmceB632, mmceB632plus),show.info = FALSE)
+head(r$measures.train)
+## Compare misclassification rates for out-of-bag, b632, and b632+ bootstrap
+r$aggr
+```
+
+
+### Convenience functions
+* mlr includes some pre-defined resample description objects for frequently used strategies like, e.g., 5-fold cross-validation (cv5). 
+* Moreover, mlr provides special functions for the most common resampling methods, for example holdout, crossval, or bootstrapB632.
+```{r,warning=FALSE}
+crossval("classif.lda", iris.task, iters = 3, measures = list(mmce, ber))
+bootstrapB632plus("regr.lm", bh.task, iters = 3, measures = list(mse, mae))
+```
+
+## Benchmark
+### Conducting benchmark experiments
+```{r,warning=FALSE}
+## Two learners to be compared
+lrns = list(makeLearner("classif.lda"), makeLearner("classif.rpart"))
+## Choose the resampling strategy
+rdesc = makeResampleDesc("Holdout")
+## Conduct the benchmark experiment
+bmr = benchmark(lrns, sonar.task, rdesc)
+bmr
+```
+
+#### Accessing benchmark results
+mlr provides several accessor functions, named getBMR<WhatToExtract>, that permit to retrieve information for further analyses. 
+```{r,warning=FALSE}
+getBMRPerformances(bmr) #returns individual performances in resampling runs
+getBMRAggrPerformances(bmr) #gives the aggregated values
+
+#Often it is more convenient to work with data.frames. You can easily convert the result structure by setting as.df = TRUE.
+getBMRPerformances(bmr, as.df = TRUE)
+getBMRAggrPerformances(bmr, as.df = TRUE)
+
+```
+
+#### Predictions
+You can access the predictions using function getBMRPredictions. Per default, you get a nested list of ResamplePrediction objects. As above, you can use the drop or as.df options to simplify the result.
+```{r,warning=FALSE}
+head(getBMRPredictions(bmr, as.df = TRUE))
+#It is also easily possible to access results for certain learners or tasks via their IDs.
+head(getBMRPredictions(bmr, learner.ids = "classif.rpart", as.df = TRUE))
+```
+
+#### IDs
+The IDs of all Learners, Tasks and Measures in a benchmark experiment can be retrieved as follows:
+```{r,warning=FALSE}
+getBMRTaskIds(bmr)
+getBMRLearnerIds(bmr)
+getBMRMeasureIds(bmr)
+```
+
+#### Fitted models
+The fitted models can be retrieved by function getBMRModels. It returns a (possibly nested) list of WrappedModel objects.
+```{r,warning=FALSE}
+getBMRModels(bmr, drop = TRUE)
+getBMRModels(bmr, learner.ids = "classif.lda")
+```
+
+#### Learners and measures
+
+```{r,warning=FALSE}
+getBMRLearners(bmr)
+getBMRMeasures(bmr)
+```
+
+#### Merging benchmark results
+You can perform an additional benchmark experiment and then use function mergeBenchmarkResults to combine the results to a single BenchmarkResult object that can be accessed and analyzed as usual.
+```{r,warning=FALSE}
+## First benchmark result
+bmr
+## Benchmark experiment for the additional learners
+lrns2 = list(makeLearner("classif.randomForest"), makeLearner("classif.qda"))
+bmr2 = benchmark(lrns2, sonar.task, rdesc, show.info = FALSE)
+bmr2
+## Merge the results
+bmr3=mergeBenchmarkResults(list(bmr, bmr2))
+bmr3
+perf = getBMRPerformances(bmr3, as.df = TRUE)
+head(perf)
+```
+
+### Benchmark analysis and visualization
+#### Example: Comparing lda, rpart and random Forest
+We consider linear discriminant analysis (lda), classification trees (rpart), and random forests (randomForest). 
+We use the mean misclassification error mmce as primary performance measure, but also calculate the balanced error rate (ber) and the training time (timetrain).
+```{r,warning=FALSE}
+
+plotBMRBoxplots(bmr3, measure = mmce)
+```
+
+
+
+
+
+
+## Feature Selection
+Two tasks:
+
+* Sort Features by importanceand filter Features with low importance;
+* Feature subsets Selection;
+
+### Basical functions for filter features
+There are several ways to select a feature subset based on feature importance values:
+
+* Keep a certain absolute number (abs) of features with highest importance.
+* Keep a certain percentage (perc) of features with highest importance.
+* Keep all features whose importance exceeds a certain threshold value (threshold).
+
+Methods can be used in calculating the feature importance, see https://mlr-org.github.io/mlr-tutorial/release/html/filter_methods/index.html
+
+Please note this methods are only related data itself, so it is applied before ML learning and will only be influenced by re-sampling. They will NOT be influenced by ML methods (learners) used in the model. So in each iter of resampling, all learners are using the same subset of features. Only the method intruduced in "Wrapper methods" and "feature selection" will be influenced by different ML methods.
+
+```{r,warning=FALSE}
+#Calculating the feature importance
+fv = generateFilterValuesData(classifTask, method = "information.gain")
+fv
+fv2 = generateFilterValuesData(classifTask, method = c("information.gain", "chi.squared"))
+plotFilterValues(fv2)
+#Selecting a feature subset
+##Can either specify the method for calculating the feature importance or you can use previously computed importance values via argument fval
+## Keep the 2 most important features
+filteredTask = filterFeatures(classifTask, method = "information.gain", abs = 2)
+## Keep the 25% most important features
+filteredTask = filterFeatures(classifTask, fval = fv, perc = 0.25)
+## Keep all features with importance greater than 0.5
+filteredTask = filterFeatures(classifTask, fval = fv, threshold = 0.5)
+filteredTask
+```
+
+### Fuse a learner with a filter method
+```{r,warning=FALSE}
+lrn = makeFilterWrapper(learner = "classif.rpart", fw.method = "information.gain", fw.abs = 3)
+rdesc = makeResampleDesc("CV", iters = 10)
+r = resample(learner = lrn, task = classifTask, resampling = rdesc, show.info = FALSE, models = TRUE)
+r$aggr
+#which features have been used
+sfeats = sapply(r$models, getFilteredFeatures)
+table(sfeats)
+```
+
+### Wrapper methods
+Wrapper methods use the performance of a learning algorithm to assess the usefulness of a feature set.In order to use the wrapper approach we have to decide:
+
+* How to assess the performance: This involves choosing a performance measure that serves as feature selection criterion and a resampling strategy.
+* Which learning method to use.
+* How to search the space of possible feature subsets.
+
+The following search strategies are available:
+
+* Exhaustive search (makeFeatSelControlExhaustive),
+* Genetic algorithm (makeFeatSelControlGA),
+* Random search (makeFeatSelControlRandom),
+* Deterministic forward or backward search (makeFeatSelControlSequential).
+
+```{r,warning=FALSE}
+## Specify the search strategy
+ctrl = makeFeatSelControlRandom(maxit = 20L)
+ctrl
+rdesc = makeResampleDesc("Holdout")
+sfeats = selectFeatures(learner = "classif.lda", task =classifTask, resampling = rdesc, control = ctrl, show.info = FALSE)
+sfeats
+sfeats$x
+```
+
+In a second example we fit a simple linear regression model to the BostonHousing data set and use a sequential search to find a feature set that minimizes the mean squared error (mse). method = "sfs" indicates that we want to conduct a sequential forward search where features are added to the model until the performance cannot be improved anymore. See the documentation page makeFeatSelControlSequential for other available sequential search methods. The search is stopped if the improvement is smaller than alpha = 0.02.
+```{r,warning=FALSE}
+ctrl = makeFeatSelControlSequential(method = "sfs", alpha = 0.02)
+rdesc = makeResampleDesc("CV", iters = 5)
+sfeats = selectFeatures(learner = "classif.lda", task = classifTask, resampling = rdesc, control = ctrl,  show.info = FALSE)
+analyzeFeatSelResult(sfeats)
+```
+
+### Fuse a learner with feature selection
+```{r,warning=FALSE}
+rdesc = makeResampleDesc("CV", iters = 3)
+lrn = makeFeatSelWrapper("surv.coxph", resampling = rdesc,control = makeFeatSelControlRandom(maxit = 10,max.features = 5), show.info = FALSE)
+mod = train(lrn, task = wpbc.task)
+mod
+sfeats = getFeatSelResult(mod)
+sfeats
+sfeats$x
+#cross-validated performance of the learner 
+r = resample(learner = lrn, task = wpbc.task, resampling = rdesc, models = TRUE,  show.info = FALSE)
+r$aggr
+#selected feature sets in the individual resampling iterations can be extracted
+lapply(r$models, getFeatSelResult)[1:2]
+```
+
+### export feature filter or selection results from benchmark object
+```{r,warning=FALSE}
+#If only one learner 
+#selectedFeatures<-lapply(getBMRModels(testSelection,drop=TRUE),getFeatSelResult)
+#If more than one learner 
+#selectedFeatures<-lapply(getBMRModels(testSelection,drop=TRUE)[[1]],getFeatSelResult)
+
+#filteredFeatures<-lapply(getBMRModels(testSelection,drop=TRUE),getFilteredFeatures)
+
+```
+
+
+## Other functions
+### getLearnerModel: Get underlying R model of learner integrated into mlr
+
+```{r,warning=FALSE}
+#temp<-getFeatureImportance(bmr$results$Test$classif.rpart.filtered$models,more.unwrap=TRUE)
+#temp
+#Then you can use other functions designed for these underlying R models. For example, here rpart.plot for plottting desicion tree
+#rpart.plot(temp)
+```
+
+### getFeatureImportance: Calculates feature importance values for trained models
+Only for some learners which are possible to calculate feature importance measures. getFeatureImportance extracts those values from trained models.
+
+* boosting;
+* cforest;
+* gbm;
+* randomForest;
+* RRF;
+* randomForestSRC;
+* ranger;
+* rpart;
+* xgboost;
+
+Seems like only works with normal benchmark object. Can't run with feature selection benchmark object.
+
+```{r,warning=FALSE}
+#getFeatureImportance(getBMRModels(bmr, learner.ids = "classif.rpart",drop = TRUE)[[1]])
+
+#Not run
+#getFeatureImportance(getBMRModels(bmr1, learner.ids = "classif.rpart.filtered",drop = TRUE)[[1]])
+#no applicable method for 'getFeatureImportanceLearner' applied to an object of class "c('FilterWrapper', 'BaseWrapper', 'Learner')"
+
+```
+
+
+
+# More details
+## glmnet
+More details at https://github.com/mlr-org/mlr/issues/1030
+```{r,warning=FALSE}
+lrn=makeLearner("regr.glmnet")
+getParamSet(lrn)
+getHyperPars(lrn)
+
+ps = makeParamSet(makeDiscreteParam("s", values = seq(0., 1, by=.2)), makeDiscreteParam("alpha", values = seq(0., 1, by=.2)))
+ctrl = makeTuneControlGrid()
+rdesc = makeResampleDesc("RepCV", folds =3, reps = 3, predict="test")
+res = tuneParams(lrn, task = bh.task, resampling = rdesc, par.set = ps, control = ctrl, show.info=FALSE)
+res
+res$x
+
+lrn = makeLearner("regr.glmnet", par.vals = list(s=0,alpha=0.2)) 
+r = resample(lrn, bh.task, rdesc, measures = list(mse))
+
+
+```
+
+
+
+# My functions
+mlr_functions.R
+```{r,code=readLines('./mlr_functions.R'),warning=FALSE,message=FALSE}
+
+```
+
+# Example of Using My functions
+```{r,warning=FALSE}
+set.seed(123456789)
+dataForModel=iris[which(iris$Species!="setosa"),]
+dataForModel$Species=factor(as.character(dataForModel$Species))
+bmrClassif<-performBenchmark(dataForModel,target="Species",
+                             featureMethod="selection",
+                             iters=2,
+                             learners=c("classif.rpart","classif.logreg","classif.randomForest"))
+
+plotBenchmarkRoc(bmrClassif)
+allSelectedFeatures=extractSelectedFeatureInBenchmark(bmrClassif)
+kable(allSelectedFeatures)
+plotFeatureSelectionResult(allSelectedFeatures)
+
+
+featureImportance=extractFeatureImportanceInBenchmark(bmrClassif)
+plotFeatureImportance(featureImportance)
+
+```
+
+
+
+
+
+# Parameters
+## Listing classifier learners
+```{r,warning=FALSE}
+## List everything in mlr
+lrns = listLearners()
+head(lrns[c("class", "package")])
+
+## List classifiers that can output probabilities
+lrns = listLearners("classif", properties = "prob")
+datatable(lrns[c("class", "name","twoclass","multiclass","class.weights","featimp","package")])
+```
+
+## Listing survival learners
+```{r,warning=FALSE}
+## List classifiers that can output probabilities
+lrns = listLearners("surv")
+datatable(lrns[c("class", "name","weights","prob","featimp","package")])
+```
+
+
+## Listing performance measures
+More details at <https://mlr-org.github.io/mlr-tutorial/release/html/measures/index.html>
+```{r,warning=FALSE}
+## List everything in mlr
+## Performance measures for classification with multiple classes
+listMeasures("classif", properties = "classif.multi")
+## Performance measure suitable for the iris classification task
+listMeasures(iris.task)
+## Get default measure for iris.task
+getDefaultMeasure(iris.task)
+## Get the default measure for linear regression
+getDefaultMeasure(makeLearner("regr.lm"))
+```
+
+
+## Listing feature filter methods
+```{r,warning=FALSE}
+filterMethods = listFilterMethods()
+datatable(filterMethods)
+```
+
+
+
+
+
