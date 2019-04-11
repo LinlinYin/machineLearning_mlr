@@ -1,0 +1,170 @@
+---
+title: "mlr3 notes"
+author: "Linlin Yin"
+date: "April 9, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tests
+
+
+```{r}
+library(mlr3)
+```
+
+
+```{r}
+task = Task$new("iris", task_type = "classif", backend = iris)
+task
+
+
+task$formula
+task$cbind(data.frame(foo = 1:150))
+task$formula
+```
+
+
+# Tasks
+
+Let’s assume we want to create a simple regression task using the mtcars data set from the package datasets to predict the column "mpg" (miles per gallon). We only take the first two features here to keep the output in the following examples short.
+
+
+```{r}
+data("mtcars", package = "datasets")
+data = mtcars[, 1:3]
+
+task_mtcars = TaskRegr$new(id = "cars", backend = data, target = "mpg")
+print(task_mtcars)
+
+```
+
+
+## Predefined tasks
+
+```{r}
+
+as.data.table(mlr_tasks)
+
+task_iris = mlr_tasks$get("iris")
+print(task_iris)
+
+
+
+task_iris$nrow
+task_iris$ncol
+
+task_iris$head(n = 3)
+
+# retrieve data for rows with ids 1, 51, and 101
+task_iris$data(rows = c(1, 51, 101))
+
+
+head(task_mtcars$row_ids)
+
+task_iris$data()
+as.data.table(task_iris)
+
+
+task_iris$feature_names
+task_iris$target_names
+
+```
+
+
+## Roles
+It is possible to assign special roles to (subsets of) rows and columns.
+For example, the previously constructed mtcars task has the following column roles:
+
+```{r}
+task_mtcars$col_roles
+
+
+library("data.table")
+
+
+data = as.data.table(mtcars[, 1:3], keep.rownames = TRUE)
+task = TaskRegr$new(id = "cars", backend = data, target = "mpg")
+
+task$feature_names
+
+#we need to change the role of the row names column rn and remove it from the set of active features. As this is a unique string column, most machine learning algorithms will have problems to process this feature.
+#We need to change it to a label instead of feature
+task$set_col_role("rn", new_roles = "label")
+# also vanished from "data" and "head"
+task$data(rows = 1:2)
+task$head(2)
+```
+Rows can have two different roles:
+1. Role "use": Rows that are generally available for model fitting (although they may also be used as test set in resampling). This is the default role.
+2. Role "validation": Rows that are held back (see below). Rows which have missing values in the target column upon task creation are automatically moved to the validation set.
+
+## Task Mutators
+All these operations only change the view on the data, without creating a copy of it, but modify the task in-place.
+
+The original data set stored in the original mlr3::DataBackend is not altered in any way.
+
+```{r}
+task = mlr_tasks$get("iris")
+task$select(c("Sepal.Width", "Sepal.Length")) # keep only these features
+task$filter(1:3) # keep only these rows
+task$head()
+
+task$cbind(data.table(foo = letters[1:3])) # add column foo
+task$head()
+
+```
+
+
+# Introduction to Resampling
+```{r}
+library(mlr3)
+task = mlr_tasks$get("iris")
+learner = mlr_learners$get("classif.rpart")
+
+mlr_resamplings$keys()
+
+
+
+```
+
+
+# Benchmark 
+
+```{r}
+tasks = mlr_tasks$mget(c("iris", "sonar"))
+learners = mlr_learners$mget(c("classif.featureless", "classif.rpart"))
+resamplings = mlr_resamplings$mget("holdout")
+
+design = expand_grid(tasks, learners, resamplings)
+print(design)
+
+set.seed(123)
+bmr = benchmark(design)
+bmr
+
+# performance for all conducted experiments
+as.data.table(bmr)
+
+# aggregated performance values
+bmr$aggregated(objects = FALSE)
+
+# Overview of of resamplings that were conducted internally
+rrs = bmr$resample_results
+print(rrs)
+
+# Extract first ResampleResult
+rr = bmr$resample_result(hash = rrs$hash[1])
+print(rr)
+
+# Extract predictions of first experiment of this resampling
+head(as.data.table(rr$experiment(1)$prediction))
+
+
+```
+
+
+
