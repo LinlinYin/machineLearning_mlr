@@ -11,6 +11,7 @@
 
 <meta name="author" content="Linlin Yin" />
 
+<meta name="date" content="2019-04-16" />
 
 <title>mlr3 notes</title>
 
@@ -186,11 +187,41 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">mlr3 notes</h1>
 <h4 class="author"><em>Linlin Yin</em></h4>
-<h4 class="date"><em>April 9, 2019</em></h4>
+<h4 class="date"><em>April 16, 2019</em></h4>
 
 </div>
 
 
+<div id="visulization-to-do-list" class="section level1">
+<h1>Visulization To-Do List</h1>
+<ul>
+<li>Model Specific (Use functions in other package)
+<ul>
+<li>decision tree</li>
+<li>Any other models?</li>
+</ul></li>
+<li>Learner (data)
+<ul>
+<li>Histgram; Boxplot</li>
+</ul></li>
+<li>resampling related: Robust?
+<ul>
+<li>Performance distribution in resampling (AUC, accuracy, …)</li>
+<li>Feature importantce in resampling</li>
+</ul></li>
+<li>Feature selection related: Simialr to resampling?
+<ul>
+<li>how many times selected in resampling</li>
+<li>feature importance</li>
+</ul></li>
+<li>Benchmark: Comparing different models
+<ul>
+<li>Performance distribution of different models</li>
+<li>Prediction results of different models (sample level, something like predicted correctly by all models, heatmap?)</li>
+<li>ROC and PR curve</li>
+</ul></li>
+</ul>
+</div>
 <div id="tests" class="section level1">
 <h1>Tests</h1>
 <pre class="r"><code>library(mlr3)</code></pre>
@@ -213,14 +244,14 @@ task</code></pre>
 ## {
 ##     formulate(self$target_names, rhs %??% self$feature_names)
 ## }
-## &lt;environment: 0x00000000208005e8&gt;</code></pre>
+## &lt;environment: 0x00000000117cb858&gt;</code></pre>
 <pre class="r"><code>task$cbind(data.frame(foo = 1:150))
 task$formula</code></pre>
 <pre><code>## function (rhs = NULL) 
 ## {
 ##     formulate(self$target_names, rhs %??% self$feature_names)
 ## }
-## &lt;environment: 0x00000000208005e8&gt;</code></pre>
+## &lt;environment: 0x00000000117cb858&gt;</code></pre>
 </div>
 <div id="tasks" class="section level1">
 <h1>Tasks</h1>
@@ -413,10 +444,10 @@ bmr = benchmark(design)</code></pre>
 <pre class="r"><code>bmr</code></pre>
 <pre><code>## &lt;BenchmarkResult&gt; of 4 experiments in 4 resamplings:
 ##  resampling  task             learner classif.mmce
-##     holdout  iris       classif.rpart    0.0600000
-##     holdout sonar       classif.rpart    0.2318841
+##     holdout  iris       classif.rpart    0.0800000
 ##     holdout sonar classif.featureless    0.4057971
-##     holdout  iris classif.featureless    0.7000000
+##     holdout sonar       classif.rpart    0.4347826
+##     holdout  iris classif.featureless    0.7600000
 ## 
 ## Public: aggregated(), clone(), combine(), data, get_best(),
 ##   learners, measures, resample_result(), resample_results,
@@ -424,45 +455,45 @@ bmr = benchmark(design)</code></pre>
 <pre class="r"><code># performance for all conducted experiments
 as.data.table(bmr)</code></pre>
 <pre><code>##                hash          task task_id                     learner
-## 1: f7c0ddd926795629 &lt;TaskClassif&gt;    iris &lt;LearnerClassifFeatureless&gt;
-## 2: a6be6012a91cc1e3 &lt;TaskClassif&gt;    iris       &lt;LearnerClassifRpart&gt;
-## 3: ef432bb1f4790ca1 &lt;TaskClassif&gt;   sonar &lt;LearnerClassifFeatureless&gt;
-## 4: 44943a35fe163c4f &lt;TaskClassif&gt;   sonar       &lt;LearnerClassifRpart&gt;
+## 1: 22b65d938c112fca &lt;TaskClassif&gt;    iris &lt;LearnerClassifFeatureless&gt;
+## 2: 0822bd0eb144d47c &lt;TaskClassif&gt;    iris       &lt;LearnerClassifRpart&gt;
+## 3: 81cb8d55794d7578 &lt;TaskClassif&gt;   sonar &lt;LearnerClassifFeatureless&gt;
+## 4: 4568d95fb0ba4328 &lt;TaskClassif&gt;   sonar       &lt;LearnerClassifRpart&gt;
 ##             learner_id          resampling resampling_id classif.mmce
-## 1: classif.featureless &lt;ResamplingHoldout&gt;       holdout    0.7000000
-## 2:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.0600000
+## 1: classif.featureless &lt;ResamplingHoldout&gt;       holdout    0.7600000
+## 2:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.0800000
 ## 3: classif.featureless &lt;ResamplingHoldout&gt;       holdout    0.4057971
-## 4:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.2318841</code></pre>
+## 4:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.4347826</code></pre>
 <pre class="r"><code># aggregated performance values
 bmr$aggregated(objects = FALSE)</code></pre>
 <pre><code>##                hash resampling_id task_id          learner_id classif.mmce
-## 1: f7c0ddd926795629       holdout    iris classif.featureless    0.7000000
-## 2: a6be6012a91cc1e3       holdout    iris       classif.rpart    0.0600000
-## 3: ef432bb1f4790ca1       holdout   sonar classif.featureless    0.4057971
-## 4: 44943a35fe163c4f       holdout   sonar       classif.rpart    0.2318841</code></pre>
+## 1: 22b65d938c112fca       holdout    iris classif.featureless    0.7600000
+## 2: 0822bd0eb144d47c       holdout    iris       classif.rpart    0.0800000
+## 3: 81cb8d55794d7578       holdout   sonar classif.featureless    0.4057971
+## 4: 4568d95fb0ba4328       holdout   sonar       classif.rpart    0.4347826</code></pre>
 <pre class="r"><code># Overview of of resamplings that were conducted internally
 rrs = bmr$resample_results
 print(rrs)</code></pre>
 <pre><code>##                hash task_id          learner_id resampling_id N
-## 1: f7c0ddd926795629    iris classif.featureless       holdout 1
-## 2: a6be6012a91cc1e3    iris       classif.rpart       holdout 1
-## 3: ef432bb1f4790ca1   sonar classif.featureless       holdout 1
-## 4: 44943a35fe163c4f   sonar       classif.rpart       holdout 1</code></pre>
+## 1: 22b65d938c112fca    iris classif.featureless       holdout 1
+## 2: 0822bd0eb144d47c    iris       classif.rpart       holdout 1
+## 3: 81cb8d55794d7578   sonar classif.featureless       holdout 1
+## 4: 4568d95fb0ba4328   sonar       classif.rpart       holdout 1</code></pre>
 <pre class="r"><code># Extract first ResampleResult
 rr = bmr$resample_result(hash = rrs$hash[1])
 print(rr)</code></pre>
 <pre><code>## &lt;ResampleResult&gt; of learner 'iris' on task 'classif.featureless' with 1 iterations
 ##       Measure Min. 1st Qu. Median Mean 3rd Qu. Max. Sd
-##  classif.mmce  0.7     0.7    0.7  0.7     0.7  0.7 NA</code></pre>
+##  classif.mmce 0.76    0.76   0.76 0.76    0.76 0.76 NA</code></pre>
 <pre class="r"><code># Extract predictions of first experiment of this resampling
 head(as.data.table(rr$experiment(1)$prediction))</code></pre>
-<pre><code>##    row_id  response  truth
-## 1:      7 virginica setosa
-## 2:      9 virginica setosa
-## 3:     10 virginica setosa
-## 4:     14 virginica setosa
-## 5:     15 virginica setosa
-## 6:     17 virginica setosa</code></pre>
+<pre><code>##    row_id response  truth
+## 1:      1   setosa setosa
+## 2:      5   setosa setosa
+## 3:     13   setosa setosa
+## 4:     17   setosa setosa
+## 5:     25   setosa setosa
+## 6:     26   setosa setosa</code></pre>
 </div>
 
 
