@@ -191,6 +191,36 @@ $(document).ready(function () {
 </div>
 
 
+<div id="visulization-to-do-list" class="section level1">
+<h1>Visulization To-Do List</h1>
+<ul>
+<li>Model Specific (Use functions in other package)
+<ul>
+<li>decision tree</li>
+<li>Any other models?</li>
+</ul></li>
+<li>Learner (data)
+<ul>
+<li>Histgram; Boxplot</li>
+</ul></li>
+<li>resampling related: Robust?
+<ul>
+<li>Performance distribution in resampling (AUC, accuracy, …)</li>
+<li>Feature importantce in resampling</li>
+</ul></li>
+<li>Feature selection related: Simialr to resampling?
+<ul>
+<li>how many times selected in resampling</li>
+<li>feature importance</li>
+</ul></li>
+<li>Benchmark: Comparing different models
+<ul>
+<li>Performance distribution of different models</li>
+<li>Prediction results of different models (sample level, something like predicted correctly by all models, heatmap?)</li>
+<li>ROC and PR curve</li>
+</ul></li>
+</ul>
+</div>
 <div id="tests" class="section level1">
 <h1>Tests</h1>
 <pre class="r"><code>library(mlr3)</code></pre>
@@ -213,14 +243,14 @@ task</code></pre>
 ## {
 ##     formulate(self$target_names, rhs %??% self$feature_names)
 ## }
-## &lt;environment: 0x00000000208005e8&gt;</code></pre>
+## &lt;environment: 0x00000000207e9b70&gt;</code></pre>
 <pre class="r"><code>task$cbind(data.frame(foo = 1:150))
 task$formula</code></pre>
 <pre><code>## function (rhs = NULL) 
 ## {
 ##     formulate(self$target_names, rhs %??% self$feature_names)
 ## }
-## &lt;environment: 0x00000000208005e8&gt;</code></pre>
+## &lt;environment: 0x00000000207e9b70&gt;</code></pre>
 </div>
 <div id="tasks" class="section level1">
 <h1>Tasks</h1>
@@ -388,6 +418,90 @@ learner = mlr_learners$get(&quot;classif.rpart&quot;)
 mlr_resamplings$keys()</code></pre>
 <pre><code>## [1] &quot;bootstrap&quot;   &quot;custom&quot;      &quot;cv&quot;          &quot;holdout&quot;     &quot;repeated_cv&quot;
 ## [6] &quot;subsampling&quot;</code></pre>
+<pre class="r"><code>resampling = mlr_resamplings$get(&quot;holdout&quot;)
+print(resampling)</code></pre>
+<pre><code>## &lt;ResamplingHoldout&gt; with 1 iterations
+## Instantiated: FALSE
+## Parameters: ratio=0.6667
+## 
+## Public: clone, duplicated_ids, format, hash, id, instance,
+##   instantiate, is_instantiated, iters, param_set, stratify,
+##   task_hash, test_set, train_set</code></pre>
+<pre class="r"><code>print(resampling$param_set$values)</code></pre>
+<pre><code>## $ratio
+## [1] 0.6666667</code></pre>
+<pre class="r"><code>resampling$param_set$values = list(ratio = 0.8)
+
+
+rr = resample(task, learner, resampling)</code></pre>
+<pre><code>## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 1/1)'</code></pre>
+<pre class="r"><code>print(rr)</code></pre>
+<pre><code>## &lt;ResampleResult&gt; of learner 'iris' on task 'classif.rpart' with 1 iterations
+##       Measure Min. 1st Qu. Median Mean 3rd Qu. Max. Sd
+##  classif.mmce  0.1     0.1    0.1  0.1     0.1  0.1 NA</code></pre>
+<pre class="r"><code>resampling = mlr_resamplings$get(&quot;cv&quot;, param_vals = list(folds = 3L))
+rr = resample(task, learner, resampling)</code></pre>
+<pre><code>## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 1/3)'
+## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 2/3)'
+## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 3/3)'</code></pre>
+<pre class="r"><code>print(rr)</code></pre>
+<pre><code>## &lt;ResampleResult&gt; of learner 'iris' on task 'classif.rpart' with 3 iterations
+##       Measure Min. 1st Qu. Median    Mean 3rd Qu. Max.      Sd
+##  classif.mmce 0.04    0.05   0.06 0.05333    0.06 0.06 0.01155</code></pre>
+<pre class="r"><code>rr$performance(&quot;classif.mmce&quot;)</code></pre>
+<pre><code>## [1] 0.06 0.04 0.06</code></pre>
+<pre class="r"><code>rr$resampling</code></pre>
+<pre><code>## &lt;ResamplingCV&gt; with 3 iterations
+## Instantiated: TRUE
+## Parameters: folds=3
+## 
+## Public: clone, duplicated_ids, format, hash, id, instance,
+##   instantiate, is_instantiated, iters, param_set, stratify,
+##   task_hash, test_set, train_set</code></pre>
+<pre class="r"><code>rr$resampling$iters</code></pre>
+<pre><code>## [1] 3</code></pre>
+<pre class="r"><code>e = rr$experiment(iter = 1)
+e$model</code></pre>
+<pre><code>## n= 100 
+## 
+## node), split, n, loss, yval, (yprob)
+##       * denotes terminal node
+## 
+## 1) root 100 64 versicolor (0.3100000 0.3600000 0.3300000)  
+##   2) Petal.Length&lt; 2.45 31  0 setosa (1.0000000 0.0000000 0.0000000) *
+##   3) Petal.Length&gt;=2.45 69 33 versicolor (0.0000000 0.5217391 0.4782609)  
+##     6) Petal.Length&lt; 4.75 32  0 versicolor (0.0000000 1.0000000 0.0000000) *
+##     7) Petal.Length&gt;=4.75 37  4 virginica (0.0000000 0.1081081 0.8918919) *</code></pre>
+<pre class="r"><code>#Manual instantiation
+resampling = mlr_resamplings$get(&quot;cv&quot;, param_vals = list(folds = 3L))
+resampling$instantiate(task)
+resampling$iters</code></pre>
+<pre><code>## [1] 3</code></pre>
+<pre class="r"><code>resampling$train_set(1)</code></pre>
+<pre><code>##   [1]   1   2   4   5   8  15  19  21  22  29  31  33  38  39  44  45  48
+##  [18]  50  51  55  58  62  63  66  69  74  75  83  85  86  88  89  90  96
+##  [35]  97 102 106 107 109 112 116 119 120 123 134 138 143 147 149 150   3
+##  [52]   6   9  10  11  24  25  28  30  32  34  35  36  40  41  42  46  49
+##  [69]  56  59  65  67  68  70  73  76  79  80  81  82  84  93  99 101 103
+##  [86] 108 110 117 121 125 127 128 130 133 136 137 139 142 146 148</code></pre>
+<pre class="r"><code>learner1 = mlr_learners$get(&quot;classif.rpart&quot;) # simple classification tree
+learner2 = mlr_learners$get(&quot;classif.featureless&quot;) # featureless learner, prediction majority class
+rr1 = resample(task, learner1, resampling)</code></pre>
+<pre><code>## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 1/3)'
+## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 2/3)'
+## INFO [mlr3] Running learner 'classif.rpart' on task 'iris' (iteration 3/3)'</code></pre>
+<pre class="r"><code>rr2 = resample(task, learner2, resampling)</code></pre>
+<pre><code>## INFO [mlr3] Running learner 'classif.featureless' on task 'iris' (iteration 1/3)'
+## INFO [mlr3] Running learner 'classif.featureless' on task 'iris' (iteration 2/3)'
+## INFO [mlr3] Running learner 'classif.featureless' on task 'iris' (iteration 3/3)'</code></pre>
+<pre class="r"><code>setequal(rr1$experiment(1)$train_set, rr2$experiment(1)$train_set)</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<pre class="r"><code>#We can also combine the created result objects into a BenchmarkResult
+bmr = rr1$combine(rr2)
+bmr$aggregated(objects = FALSE)</code></pre>
+<pre><code>##                hash resampling_id task_id          learner_id classif.mmce
+## 1: c9f5b289c6f0879b            cv    iris       classif.rpart   0.06666667
+## 2: 754f4ed1a89fccad            cv    iris classif.featureless   0.70666667</code></pre>
 </div>
 <div id="benchmark" class="section level1">
 <h1>Benchmark</h1>
@@ -413,9 +527,9 @@ bmr = benchmark(design)</code></pre>
 <pre class="r"><code>bmr</code></pre>
 <pre><code>## &lt;BenchmarkResult&gt; of 4 experiments in 4 resamplings:
 ##  resampling  task             learner classif.mmce
-##     holdout  iris       classif.rpart    0.0600000
-##     holdout sonar       classif.rpart    0.2318841
-##     holdout sonar classif.featureless    0.4057971
+##     holdout  iris       classif.rpart    0.0400000
+##     holdout sonar       classif.rpart    0.3043478
+##     holdout sonar classif.featureless    0.4202899
 ##     holdout  iris classif.featureless    0.7000000
 ## 
 ## Public: aggregated(), clone(), combine(), data, get_best(),
@@ -424,30 +538,30 @@ bmr = benchmark(design)</code></pre>
 <pre class="r"><code># performance for all conducted experiments
 as.data.table(bmr)</code></pre>
 <pre><code>##                hash          task task_id                     learner
-## 1: f7c0ddd926795629 &lt;TaskClassif&gt;    iris &lt;LearnerClassifFeatureless&gt;
-## 2: a6be6012a91cc1e3 &lt;TaskClassif&gt;    iris       &lt;LearnerClassifRpart&gt;
-## 3: ef432bb1f4790ca1 &lt;TaskClassif&gt;   sonar &lt;LearnerClassifFeatureless&gt;
-## 4: 44943a35fe163c4f &lt;TaskClassif&gt;   sonar       &lt;LearnerClassifRpart&gt;
+## 1: 6c13c16034ca2095 &lt;TaskClassif&gt;    iris &lt;LearnerClassifFeatureless&gt;
+## 2: ac3fe9eae6e4445b &lt;TaskClassif&gt;    iris       &lt;LearnerClassifRpart&gt;
+## 3: ed4aef86f049b891 &lt;TaskClassif&gt;   sonar &lt;LearnerClassifFeatureless&gt;
+## 4: b9fd251f1b37f36b &lt;TaskClassif&gt;   sonar       &lt;LearnerClassifRpart&gt;
 ##             learner_id          resampling resampling_id classif.mmce
 ## 1: classif.featureless &lt;ResamplingHoldout&gt;       holdout    0.7000000
-## 2:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.0600000
-## 3: classif.featureless &lt;ResamplingHoldout&gt;       holdout    0.4057971
-## 4:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.2318841</code></pre>
+## 2:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.0400000
+## 3: classif.featureless &lt;ResamplingHoldout&gt;       holdout    0.4202899
+## 4:       classif.rpart &lt;ResamplingHoldout&gt;       holdout    0.3043478</code></pre>
 <pre class="r"><code># aggregated performance values
 bmr$aggregated(objects = FALSE)</code></pre>
 <pre><code>##                hash resampling_id task_id          learner_id classif.mmce
-## 1: f7c0ddd926795629       holdout    iris classif.featureless    0.7000000
-## 2: a6be6012a91cc1e3       holdout    iris       classif.rpart    0.0600000
-## 3: ef432bb1f4790ca1       holdout   sonar classif.featureless    0.4057971
-## 4: 44943a35fe163c4f       holdout   sonar       classif.rpart    0.2318841</code></pre>
+## 1: 6c13c16034ca2095       holdout    iris classif.featureless    0.7000000
+## 2: ac3fe9eae6e4445b       holdout    iris       classif.rpart    0.0400000
+## 3: ed4aef86f049b891       holdout   sonar classif.featureless    0.4202899
+## 4: b9fd251f1b37f36b       holdout   sonar       classif.rpart    0.3043478</code></pre>
 <pre class="r"><code># Overview of of resamplings that were conducted internally
 rrs = bmr$resample_results
 print(rrs)</code></pre>
 <pre><code>##                hash task_id          learner_id resampling_id N
-## 1: f7c0ddd926795629    iris classif.featureless       holdout 1
-## 2: a6be6012a91cc1e3    iris       classif.rpart       holdout 1
-## 3: ef432bb1f4790ca1   sonar classif.featureless       holdout 1
-## 4: 44943a35fe163c4f   sonar       classif.rpart       holdout 1</code></pre>
+## 1: 6c13c16034ca2095    iris classif.featureless       holdout 1
+## 2: ac3fe9eae6e4445b    iris       classif.rpart       holdout 1
+## 3: ed4aef86f049b891   sonar classif.featureless       holdout 1
+## 4: b9fd251f1b37f36b   sonar       classif.rpart       holdout 1</code></pre>
 <pre class="r"><code># Extract first ResampleResult
 rr = bmr$resample_result(hash = rrs$hash[1])
 print(rr)</code></pre>
@@ -456,13 +570,13 @@ print(rr)</code></pre>
 ##  classif.mmce  0.7     0.7    0.7  0.7     0.7  0.7 NA</code></pre>
 <pre class="r"><code># Extract predictions of first experiment of this resampling
 head(as.data.table(rr$experiment(1)$prediction))</code></pre>
-<pre><code>##    row_id  response  truth
-## 1:      7 virginica setosa
-## 2:      9 virginica setosa
-## 3:     10 virginica setosa
-## 4:     14 virginica setosa
-## 5:     15 virginica setosa
-## 6:     17 virginica setosa</code></pre>
+<pre><code>##    row_id   response  truth
+## 1:      1 versicolor setosa
+## 2:      2 versicolor setosa
+## 3:      3 versicolor setosa
+## 4:      4 versicolor setosa
+## 5:     10 versicolor setosa
+## 6:     12 versicolor setosa</code></pre>
 </div>
 
 

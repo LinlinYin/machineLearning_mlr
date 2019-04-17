@@ -9,6 +9,25 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+# Visulization To-Do List
+* Model Specific (Use functions in other package)
+    * decision tree
+    * Any other models?
+* Learner (data)
+    * Histgram; Boxplot
+* resampling related: Robust?
+    * Performance distribution in resampling (AUC, accuracy, ...)
+    * Feature importantce in resampling
+* Feature selection related: Simialr to resampling?
+    * how many times selected in resampling
+    * feature importance
+* Benchmark: Comparing different models
+    * Performance distribution of different models
+    * Prediction results of different models (sample level, something like predicted correctly by all models, heatmap?)
+    * ROC and PR curve
+
+
 # Tests
 
 
@@ -200,6 +219,3 @@ head(as.data.table(rr$experiment(1)$prediction))
 
 
 ```
-
-
-
