@@ -15,16 +15,16 @@ knitr::opts_chunk$set(echo = TRUE)
     * decision tree
     * Any other models?
 * Learner (data)
-    * Histgram; Boxplot
+    * Histgram; Boxplot; Using create_report in DataExplorer package?
 * resampling related: Robust?
     * Performance distribution in resampling (AUC, accuracy, ...)
-    * Feature importantce in resampling
-* Feature selection related: Simialr to resampling?
+    * Feature importance in resampling
+* Feature selection related: Similar to resampling?
     * how many times selected in resampling
     * feature importance
 * Benchmark: Comparing different models
     * Performance distribution of different models
-    * Prediction results of different models (sample level, something like predicted correctly by all models, heatmap?)
+    * Prediction results of different models (sample level, something like samples predicted correctly by all models, heatmap?)
     * ROC and PR curve
 
 
