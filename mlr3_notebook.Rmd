@@ -219,3 +219,37 @@ head(as.data.table(rr$experiment(1)$prediction))
 
 
 ```
+
+# Test for visulization functions from mlr to mlr3
+
+https://mlr.mlr-org.com/articles/tutorial/predict.html
+
+## plotLearnerPrediction
+```{r}
+#mlr1
+library(mlr)
+lrn = makeLearner("classif.rpart", id = "CART")
+plotLearnerPrediction(lrn, task = iris.task)
+getTaskFeatureNames(iris.task)
+
+
+#mlr3 test
+#task_iris = TaskClassif$new(id = "iristest", backend = iris, target = "Species")
+task_iris = mlr_tasks$get("iris")
+task_iris$feature_names
+
+learner = mlr_learners$get("classif.rpart")
+learner$param_set
+
+learner$train(task_iris)
+learner$model
+
+
+
+predictions = learner$predict(task_iris)
+predictions
+
+
+
+```
+
