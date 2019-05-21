@@ -224,6 +224,8 @@ head(as.data.table(rr$experiment(1)$prediction))
 
 https://mlr.mlr-org.com/articles/tutorial/predict.html
 
+https://mlr3book.mlr-org.com/
+
 ## plotLearnerPrediction
 ```{r}
 #mlr1
@@ -235,8 +237,8 @@ getTaskFeatureNames(iris.task)
 
 #mlr3 test
 #task_iris = TaskClassif$new(id = "iristest", backend = iris, target = "Species")
-task_iris = mlr_tasks$get("iris")
-task_iris$feature_names
+task = mlr_tasks$get("iris")
+task$feature_names
 
 learner = mlr_learners$get("classif.rpart")
 learner$param_set
@@ -245,11 +247,94 @@ learner$train(task_iris)
 learner$model
 
 
-
-predictions = learner$predict(task_iris)
+predictions = learner$predict(task)
 predictions
 
 
+library(ggplot2)
+
+task$data
+
+
+plotLearnerPrediction=function(learner,task,features = NULL) {
+  fns = task$feature_names
+  if (is.null(features)) {
+        features = if (length(fns) == 1L) 
+            fns
+        else fns[1:2]
+    }
+  dataForPlot=task$data()[,..features]
+  
+  predictions = learner$predict(task)
+  dataForPlot=cbind(dataForPlot,response=predictions$response)
+  
+  x1n=features[1]
+  x2n=features[2]
+  p=ggplot(dataForPlot,aes_string(x = x1n, y = x2n, col = "response"))+geom_point()
+  return(p)
+}
 
 ```
+
+## benchmark
+```{r}
+
+library(data.table)
+# get some example tasks
+tasks = mlr_tasks$mget(c("pima", "sonar", "spam"))
+
+# set measures for all tasks: accuracy (acc) and area under the curve (auc)
+measures = mlr_measures$mget(c("classif.acc", "classif.auc"))
+tasks = lapply(tasks, function(task) { task$measures = measures; task })
+
+# get a featureless learner and a classification tree
+learners = mlr_learners$mget(c("classif.featureless", "classif.rpart"))
+
+# let the learners predict probabilities instead of class labels (required for AUC measure)
+learners$classif.featureless$predict_type = "prob"
+learners$classif.rpart$predict_type = "prob"
+
+# compare via 10-fold cross validation
+resamplings = mlr_resamplings$mget("cv")
+
+# create a BenchmarkResult object
+design = expand_grid(tasks, learners, resamplings)
+print(design)
+
+
+bmr = benchmark(design)
+
+
+bmr
+bmr$aggregated(objects = FALSE)
+bmr$aggregated(objects = FALSE)[, list(acc = mean(classif.acc), auc = mean(classif.auc)), by = "learner_id"]
+
+plotBMRBoxplots=function(bmr,measure=bmr$measures$measure_id[1]) {
+  bmrAgg=bmr$aggregated(objects = FALSE)
+  setkey(bmrAgg,"hash")
+  
+  bmrAllUniqueHash=unique(bmr$aggregated(objects = FALSE)$hash)
+  
+  dataForPlot=NULL
+  for (i in 1:length(bmrAllUniqueHash)) {
+    rr = bmr$resample_result(bmrAllUniqueHash[i])
+    dataForPlotOne=cbind(as.data.table(rr)[,..measure],bmrAgg[bmrAllUniqueHash[i],c("task_id","learner_id")])
+    dataForPlot=rbind(dataForPlot,dataForPlotOne)
+  }
+  
+  p=ggplot(data=dataForPlot,aes_string(x = "learner_id", y = measure))+facet_wrap(~task_id)+geom_boxplot()
+  return(p)
+}
+
+plotBMRSummary=function(bmr) {
+  bmrAgg=bmr$aggregated(objects = FALSE)
+  
+  
+  
+}
+
+
+```
+
+
 
