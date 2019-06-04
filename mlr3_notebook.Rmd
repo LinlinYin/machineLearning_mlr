@@ -326,6 +326,12 @@ plotBMRBoxplots=function(bmr,measure=bmr$measures$measure_id[1]) {
   return(p)
 }
 
+plotBMRRanksAsBarChart=function(bmr) {
+  bmrAgg=bmr$aggregated(objects = FALSE)
+  
+  
+}
+
 plotBMRSummary=function(bmr) {
   bmrAgg=bmr$aggregated(objects = FALSE)
   

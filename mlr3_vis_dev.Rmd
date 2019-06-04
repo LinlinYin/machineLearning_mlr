@@ -63,7 +63,7 @@ plotLearnerPrediction(learner,task)
 
 ```
 
-## benchmark
+## benchmark related
 ```{r}
 
 # get some example tasks
@@ -113,7 +113,16 @@ plotBMRBoxplots=function(bmr,measure=bmr$measures$measure_id[1]) {
 
 plotBMRBoxplots(bmr)
 
+library(dplyr)
 
+plotBMRRanksAsBarChart=function(bmr) {
+    bmrAgg=bmr$aggregated(objects = FALSE)
+    dataForPlot=bmrAgg %>% group_by(task_id) %>%  mutate(rank = min_rank(desc(classif.acc)))
+    p=ggplot(dataForPlot,aes(x=rank,y=task_id,fill=learner_id))+geom_tile()
+    return(p)
+}
+
+plotBMRRanksAsBarChart(bmr)
 ```
 
 
