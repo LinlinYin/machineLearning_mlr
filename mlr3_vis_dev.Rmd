@@ -11,14 +11,16 @@ knitr::opts_chunk$set(echo = TRUE)
 # Test for visulization functions from mlr to mlr3
 
 ```{r}
-library(mlr3)
-library(ggplot2)
-library(data.table)
-library(dplyr)
+#library(mlr3)
+#library(ggplot2)
+#library(data.table)
+#library(dplyr)
+#library(checkmate)
 
 #devtools::load_all("d:/source/machineLearning_mlr/mlr3vis/")
+library(mlr3)
 library(mlr3vis)
-library(checkmate)
+
 ```
 
 mlr: https://mlr.mlr-org.com/articles/tutorial/predict.html  
@@ -26,10 +28,6 @@ mlr: https://mlr.mlr-org.com/articles/tutorial/predict.html
 mlr3: https://mlr3book.mlr-org.com/  
 
 ## plotLearnerPrediction
-
-Questions: 
-1. Not sure about the Cross validation part. In mlr1, pred.cv = cvResult$predict; But how can we get predict result in mlr3 for ResampleResult object?
-2. To plot the "grid", How to make new task in mlr3? taskGrid=TaskRegr$new(backend = grid) doesn't work: argument "target" is missing.
 
 ```{r}
 
@@ -77,14 +75,16 @@ bmr = benchmark(design)
 
 ```
 
-
+### plotBMRBoxplots
 ```{r}
 
 plotBMRBoxplots(bmr)
+plotBMRBoxplots(bmr,style = "violin")
+plotBMRBoxplots(bmr,style = "dot")
 
 ```
 
-
+### plotBMRRanksAsBarChart
 ```{r}
 
 
