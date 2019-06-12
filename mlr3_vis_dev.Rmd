@@ -14,6 +14,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(mlr3)
 library(ggplot2)
 library(data.table)
+library(dplyr)
+
+devtools::load_all("d:/source/machineLearning_mlr/mlr3vis/")
+library(checkmate)
 ```
 
 mlr: https://mlr.mlr-org.com/articles/tutorial/predict.html  
@@ -21,45 +25,17 @@ mlr: https://mlr.mlr-org.com/articles/tutorial/predict.html
 mlr3: https://mlr3book.mlr-org.com/  
 
 ## plotLearnerPrediction
+
+Questions: 
+1. Not sure about the Cross validation part. In mlr1, pred.cv = cvResult$predict; But how can we get predict result in mlr3 for ResampleResult object?
+2. To plot the "grid", How to make new task in mlr3? taskGrid=TaskRegr$new(backend = grid) doesn't work: argument "target" is missing.
+
 ```{r}
 
-#mlr3 test
-#task_iris = TaskClassif$new(id = "iristest", backend = iris, target = "Species")
 task = mlr_tasks$get("iris")
-#task$feature_names
-
 learner = mlr_learners$get("classif.rpart")
-#learner$param_set
 
-learner$train(task)
-#learner$model
-
-#predictions = learner$predict(task)
-#predictions
-
-#task$data
-
-
-plotLearnerPrediction=function(learner,task,features = NULL) {
-  fns = task$feature_names
-  if (is.null(features)) {
-        features = if (length(fns) == 1L) 
-            fns
-        else fns[1:2]
-    }
-  dataForPlot=task$data()[,..features]
-  
-  predictions = learner$predict(task)
-  dataForPlot=cbind(dataForPlot,response=predictions$response)
-  
-  x1n=features[1]
-  x2n=features[2]
-  p=ggplot(dataForPlot,aes_string(x = x1n, y = x2n, col = "response"))+geom_point()
-  return(p)
-}
-
-
-plotLearnerPrediction(learner,task)
+plotLearnerPrediction(learner=learner,task=task)
 
 ```
 
@@ -94,36 +70,27 @@ bmr = benchmark(design)
 #bmr$aggregated(objects = FALSE)
 #bmr$aggregated(objects = FALSE)[, list(acc = mean(classif.acc), auc = mean(classif.auc)), by = "learner_id"]
 
-plotBMRBoxplots=function(bmr,measure=bmr$measures$measure_id[1]) {
-  bmrAgg=bmr$aggregated(objects = FALSE)
-  setkey(bmrAgg,"hash")
-  
-  bmrAllUniqueHash=unique(bmr$aggregated(objects = FALSE)$hash)
-  
-  dataForPlot=NULL
-  for (i in 1:length(bmrAllUniqueHash)) {
-    rr = bmr$resample_result(bmrAllUniqueHash[i])
-    dataForPlotOne=cbind(as.data.table(rr)[,..measure],bmrAgg[bmrAllUniqueHash[i],c("task_id","learner_id")])
-    dataForPlot=rbind(dataForPlot,dataForPlotOne)
-  }
-  
-  p=ggplot(data=dataForPlot,aes_string(x = "learner_id", y = measure))+facet_wrap(~task_id)+geom_boxplot()
-  return(p)
-}
+
+
+
+
+```
+
+
+```{r}
 
 plotBMRBoxplots(bmr)
 
-library(dplyr)
+```
 
-plotBMRRanksAsBarChart=function(bmr) {
-    bmrAgg=bmr$aggregated(objects = FALSE)
-    dataForPlot=bmrAgg %>% group_by(task_id) %>%  mutate(rank = min_rank(desc(classif.acc)))
-    p=ggplot(dataForPlot,aes(x=rank,y=task_id,fill=learner_id))+geom_tile()
-    return(p)
-}
+
+```{r}
+
 
 plotBMRRanksAsBarChart(bmr)
 ```
+
+
 
 
 

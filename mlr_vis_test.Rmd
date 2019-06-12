@@ -1,0 +1,34 @@
+---
+title: "mlr vis test: To know how visulizationb works in mlr"
+author: "Linlin Yin"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Test for visulization functions in mlr
+
+```{r}
+library(mlr)
+library(ggplot2)
+library(data.table)
+library(dplyr)
+
+```
+
+mlr: https://mlr.mlr-org.com/articles/tutorial/predict.html  
+
+
+## plotLearnerPrediction
+
+
+```{r}
+lrn = makeLearner("classif.rpart", id = "CART")
+plotLearnerPrediction(lrn, task = iris.task)
+
+```
+
+
+
