@@ -16,7 +16,8 @@ library(ggplot2)
 library(data.table)
 library(dplyr)
 
-devtools::load_all("d:/source/machineLearning_mlr/mlr3vis/")
+#devtools::load_all("d:/source/machineLearning_mlr/mlr3vis/")
+library(mlr3vis)
 library(checkmate)
 ```
 
