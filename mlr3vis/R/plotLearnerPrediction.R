@@ -3,7 +3,7 @@
 plotLearnerPrediction=function(learner,task,features = NULL,cv=10L,err.mark = "train",
                                pointsize = 2,err.size=pointsize,err.col = "white",
                                gridsize=100L) {
-  assertChoice(err.mark, choices = c("train", "cv", "none"))
+  checkmate::assertChoice(err.mark, choices = c("train", "cv", "none"))
 
   fns = task$feature_names
   if (is.null(features)) {

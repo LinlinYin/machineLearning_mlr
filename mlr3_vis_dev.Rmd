@@ -84,13 +84,66 @@ plotBMRBoxplots(bmr,style = "dot")
 
 ```
 
-### plotBMRRanksAsBarChart
+### plotBMRBoxplotsMore: Better figure than plotBMRBoxplots?
 ```{r}
 
+plotBMRBoxplotsMore(bmr)
+plotBMRBoxplotsMore(bmr,style = "violin")
+plotBMRBoxplotsMore(bmr,style = "dot")
 
+```
+
+### plotBMRRanksAsBarChart
+```{r}
 plotBMRRanksAsBarChart(bmr)
 ```
 
+## generateThreshVsPerfData?
+
+```{r}
+generateThreshVsPerfData=function(e,gridsize=10L) {
+  eClone=e$clone()
+  
+  performanceByThreshold=NULL
+  for (i in 1:gridsize) {
+    th=i*(1/gridsize)
+  #  th=c(th, 1-th)
+  #  th=c(0.1,0.9)
+  #  names(th) = task$class_names
+    eClone$prediction=eClone$prediction$set_threshold(th)
+    performanceByThreshold=rbind(performanceByThreshold,c(threshold=th,eClone$score()$performance))
+  }
+  performanceByThreshold=data.table::as.data.table(performanceByThreshold)
+
+  return(performanceByThreshold)
+}
+
+
+plotThreshVsPerf=function(performanceByThreshold) {
+    dataForPlot=reshape2::melt(performanceByThreshold,id.vars ="threshold" )
+    colnames(dataForPlot)[-1]=c("measure","performance")
+    plt = ggplot2::ggplot(dataForPlot, aes_string(x = "threshold", y = "performance"))
+    plt = plt + geom_line()+facet_wrap(~measure, scales = "free_y")
+    return(plt)
+}
+
+
+task = mlr_tasks$get("sonar")
+task$measures
+measures = mlr_measures$mget(c("classif.acc","classif.ce"))
+task$measures = measures
+
+learner = mlr_learners$get("classif.rpart",predict_type = "prob")
+#learner$predict_type
+#learner$predict_type = "prob"
+e = Experiment$new(task = task, learner = learner)$train()$predict()
+e$performance #NULL
+e$score()$performance
+
+performanceByThreshold=generateThreshVsPerfData(e)
+plotThreshVsPerf(performanceByThreshold)
+
+```
 
 
 
